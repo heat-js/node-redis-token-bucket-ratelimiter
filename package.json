@@ -21,7 +21,11 @@
     "test": "mocha test/test-ioredis.js test/test-node-redis.js",
     "test-cluster": "mocha test/test-cluster.js",
     "build": "node ./build/hashLua.js ./lua/throttle.lua; node ./build/hashLua.js ./lua/status.lua",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "patch": "yarn version --patch; yarn publish --access=public",
+    "minor": "yarn version --minor; yarn publish --access=public",
+    "major": "yarn version --major; yarn publish --access=public",
+    "deploy": "yarn version; yarn publish --access=public"
   },
   "repository": {
     "type": "git",
