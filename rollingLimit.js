@@ -1,5 +1,7 @@
 'use strict';
-const luaScript = require('./lua/rollingLimit.lua.json');
+
+const throttleScript = require('./lua/throttle.lua.json');
+const statusScript = require('./lua/status.lua.json');
 
 class RollingLimit {
 
@@ -77,14 +79,14 @@ class RollingLimit {
         this.limit,       // ARGV[1]
         this.interval,    // ARGV[2]
         amount,           // ARGV[3]
-        this.force        // ARGV[54]
+        this.force,       // ARGV[4]
       ];
 
-      return this.redis.evalshaAsync(luaScript.sha1, ...redisKeysAndArgs)
+      return this.redis.evalshaAsync(throttleScript.sha1, ...redisKeysAndArgs)
       .catch((err) => {
         if (err instanceof Error && err.message.includes('NOSCRIPT')) {
           // Script is missing, invoke again while providing the entire script
-          return this.redis.evalAsync(luaScript.script, ...redisKeysAndArgs);
+          return this.redis.evalAsync(throttleScript.script, ...redisKeysAndArgs);
         }
         // Other error
         throw err;
@@ -96,6 +98,46 @@ class RollingLimit {
           rejected:   Boolean(res[1]),
           retryDelta: res[2],
           forced:     Boolean(res[3])
+        };
+      });
+    });
+  }
+
+  get(id, amount){
+    return Promise.resolve()
+    .then(() => {
+      if (amount == null) amount = 1;
+      if (amount < 0) throw new Error('amount must be >= 0');
+      if (amount > this.limit) throw new Error(`amount must be < limit (${this.limit})`);
+
+      // Note extra curly braces (hash tag) which are needed for Cluster hash slotting
+      const keyBase = `${this.prefix}{${id}}`;
+      const valueKey = `${keyBase}:V`;
+      const timestampKey = `${keyBase}:T`;
+
+      const redisKeysAndArgs = [
+        2,                // We're sending 2 KEYs
+        valueKey,         // KEYS[1]
+        timestampKey,     // KEYS[2]
+        this.limit,       // ARGV[1]
+        this.interval,    // ARGV[2]
+        amount,           // ARGV[3]
+      ];
+
+      return this.redis.evalshaAsync(statusScript.sha1, ...redisKeysAndArgs)
+      .catch((err) => {
+        if (err instanceof Error && err.message.includes('NOSCRIPT')) {
+          // Script is missing, invoke again while providing the entire script
+          return this.redis.evalAsync(statusScript.script, ...redisKeysAndArgs);
+        }
+        // Other error
+        throw err;
+      })
+      .then((res) => {
+        return {
+          limit:      this.limit,
+          remaining:  res[0],
+          retryDelta: res[1],
         };
       });
     });
