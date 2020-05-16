@@ -1,5 +1,5 @@
 {
-  "name": "@heat/jsredis-token-bucket-ratelimiter",
+  "name": "@heat/redis-token-bucket-ratelimiter",
   "version": "0.0.1",
   "description": "Rolling rate limit in redis via a lua script",
   "main": "rollingLimit.js",
